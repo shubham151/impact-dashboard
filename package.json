@@ -1,0 +1,46 @@
+{
+  "name": "blueprint",
+  "version": "1.0.0",
+  "type": "module",
+  "packageManager": "npm@11.11.0",
+  "scripts": {
+    "build": "vite build",
+    "start": "mkdir -p data && npm run db:push && node --import tsx server/index.ts",
+    "dev": "mkdir -p data && node --watch-path=./server --import tsx server/index.ts --dev",
+    "ci": "npm run lint && npm run check && npm run test",
+    "format": "prettier --write --log-level warn .",
+    "lint": "prettier --check . && eslint .",
+    "check": "tsc --noEmit && svelte-check --tsconfig tsconfig.json",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "db:init": "mkdir -p data && npm run db:push",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "better-sqlite3": "^11.8.1",
+    "drizzle-orm": "^0.41.0",
+    "hono": "^4.7.10",
+    "drizzle-kit": "^0.31.9",
+    "tsx": "^4.21.0",
+    "uuidv7": "^1.2.1"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.15.3",
+    "@vitest/coverage-v8": "^4.1.4",
+    "eslint": "^10.2.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-svelte": "^3.17.0",
+    "prettier": "^3.8.2",
+    "prettier-plugin-svelte": "^3.4.0",
+    "svelte": "^5.55.4",
+    "svelte-check": "^4.4.6",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.1",
+    "vite": "^8.0.8",
+    "vitest": "^4.1.3"
+  }
+}

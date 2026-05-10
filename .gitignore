@@ -1,0 +1,21 @@
+node_modules
+
+# Database
+data
+
+# Tests
+coverage
+test-results
+
+# Output
+build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.empty
+
