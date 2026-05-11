@@ -1,0 +1,4 @@
+{
+  "repo": "posthog/posthog",
+  "bots": ["dependabot*", "renovate*", "github-actions*", "*[bot]"]
+}

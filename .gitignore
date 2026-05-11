@@ -19,3 +19,8 @@ Thumbs.db
 .env.*
 !.env.empty
 
+# Local config
+config.json
+
+
+.session.txt

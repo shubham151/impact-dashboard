@@ -1,11 +1,19 @@
+import 'dotenv/config'
+
+import { Ai } from '$server/Ai'
+import { Data } from '$server/Data'
 import { Db } from '$server/Db'
+import { Engineers } from '$server/Engineers'
 import { Hono } from 'hono'
-import { Todos } from '$server/Todos'
+import { Pulls } from '$server/Pulls'
 import { serve } from '$lib/serve'
 
 const app = new Hono()
 const db = Db.get()
 
-Todos.init(app, db)
+Pulls.init(app, db)
+Engineers.init(app, db)
+Data.init(app)
+Ai.init(app)
 
 serve(app)

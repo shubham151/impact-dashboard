@@ -4,9 +4,11 @@
   "type": "module",
   "packageManager": "npm@11.11.0",
   "scripts": {
+    "data": "mkdir -p data && npm run db:push && node --import tsx scripts/prebuild.ts",
+    "data:fresh": "node --import tsx scripts/prebuild.ts --skip-sync",
     "build": "vite build",
     "start": "mkdir -p data && npm run db:push && node --import tsx server/index.ts",
-    "dev": "mkdir -p data && node --watch-path=./server --import tsx server/index.ts --dev",
+    "dev": "mkdir -p data && npm run db:push && node --watch-path=./server --import tsx server/index.ts --dev",
     "ci": "npm run lint && npm run check && npm run test",
     "format": "prettier --write --log-level warn .",
     "lint": "prettier --check . && eslint .",
@@ -18,11 +20,13 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@google/genai": "^2.0.1",
     "@hono/node-server": "^1.13.7",
     "better-sqlite3": "^11.8.1",
+    "dotenv": "^16.5.0",
+    "drizzle-kit": "^0.31.9",
     "drizzle-orm": "^0.41.0",
     "hono": "^4.7.10",
-    "drizzle-kit": "^0.31.9",
     "tsx": "^4.21.0",
     "uuidv7": "^1.2.1"
   },

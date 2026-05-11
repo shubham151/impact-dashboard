@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store'
 
 function getRoute(): string {
-  return location.pathname.slice(1) || 'home'
+  return location.pathname.slice(1) || 'dashboard'
 }
 
 export const route = writable<string>(getRoute())

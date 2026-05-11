@@ -23,15 +23,15 @@ async function serveDev(app: app): Promise<void> {
   const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'custom' })
   const handler = getRequestListener(app.fetch)
   createServer(async (req, res) => {
+    if (req.url?.startsWith('/api')) {
+      handler(req, res)
+      return
+    }
     vite.middlewares(req, res, async () => {
-      if (req.url?.startsWith('/api')) {
-        handler(req, res)
-      } else {
-        const template = readFileSync('root/index.html', 'utf-8')
-        const html = await vite.transformIndexHtml(req.url!, template)
-        res.setHeader('Content-Type', 'text/html')
-        res.end(html)
-      }
+      const template = readFileSync('index.html', 'utf-8')
+      const html = await vite.transformIndexHtml(req.url!, template)
+      res.setHeader('Content-Type', 'text/html')
+      res.end(html)
     })
   }).listen(port, () => {
     console.log(startMessage)
