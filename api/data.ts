@@ -1,5 +1,5 @@
-import { Db } from '../server/Db'
-import { Impact } from '../server/Impact'
+import { Db } from '../server/Db.js'
+import { Impact } from '../server/Impact.js'
 
 export default async function handler(): Promise<Response> {
   try {

@@ -1,4 +1,4 @@
-import { generateNarrative, type aiRequest } from '../server/AiCore'
+import { generateNarrative, type aiRequest } from '../server/AiCore.js'
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') {

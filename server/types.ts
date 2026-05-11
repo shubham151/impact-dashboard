@@ -1,5 +1,5 @@
 import type { Hono } from 'hono'
-import type { Db } from '$server/Db'
+import type { Db } from './Db.js'
 
 export type db = ReturnType<typeof Db.get>
 

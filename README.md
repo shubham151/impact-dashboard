@@ -15,48 +15,52 @@ Each metric is min-max normalized within the cohort (non-bot authors with ≥3 m
 ## Stack
 
 - **Svelte 5** + **Vite** frontend, static build (~50KB JS gzipped)
-- **Hono** local dev server (not in production)
-- **SQLite** via Drizzle for ingest storage (local only — see "Why two data sources" below)
-- **Vercel serverless function** (`api/ai.ts`) calling **Gemini 2.5 Flash** on demand
+- **Turso** (libSQL — hosted SQLite over HTTP) as the single source of truth
+- **Drizzle ORM** for queries (libsql client, async everywhere)
+- **Hono** local dev server (only used for `npm run dev`)
+- **Vercel serverless functions** for `/api/data` (impact compute) and `/api/ai` (Gemini)
+- **Gemini 2.5 Flash** via `@google/genai` SDK with structured `responseSchema`
 
 ## Architecture
 
 ```
-┌─────────────────────────┐         ┌──────────────────────────┐
-│  LOCAL (build time)     │         │  VERCEL (runtime)        │
-│                         │         │                          │
-│  GitHub REST API        │         │  Static frontend (build/)│
-│       ↓                 │ deploy  │         ↓                │
-│  SQLite (data/sqlite.db)│ ──────► │  fetch /api/data         │
-│       ↓                 │         │   └─► reads data.json    │
-│  Impact.compute()       │         │                          │
-│       ↓                 │         │  click "Generate AI"     │
-│  data.json (snapshot)   │         │   └─► POST /api/ai       │
-│                         │         │         ↓ Gemini 2.5     │
-└─────────────────────────┘         └──────────────────────────┘
+┌─────────────────────────┐         ┌────────────────────────────────┐
+│  LOCAL (operator-side)  │         │  VERCEL (runtime)              │
+│                         │         │                                │
+│  GitHub REST API        │         │  Static frontend (build/)      │
+│       ↓                 │         │         ↓ fetch                │
+│  npm run data           │         │  /api/data  ──┐                │
+│   (sync into Turso)     │         │               ▼                │
+│         ↓               │         │       Impact.compute()         │
+│         ▼               │         │               │                │
+│   ┌──────────────┐      │ queries │               ▼                │
+│   │    Turso     │◄─────┼─────────┤      libSQL HTTP query         │
+│   │ (libSQL DB)  │      │         │                                │
+│   └──────────────┘      │         │  /api/ai  ──► Gemini 2.5 Flash │
+│                         │         │     (on-demand button click)   │
+└─────────────────────────┘         └────────────────────────────────┘
 ```
 
-**Why two data sources?** SQLite is the working DB locally — sync ingests into it, `Impact.compute()` reads from it. Vercel can't access local SQLite, so we export the computed snapshot as `data.json` and ship it. Both `data.json` and the Gemini calls are served by Vercel serverless functions (`/api/data`, `/api/ai`) — the frontend never reads static data files directly.
+**Single source of truth: Turso.** The GitHub sync (run from your laptop) writes PR and review rows into the hosted libSQL database. Both local dev and production Vercel functions read from the same Turso DB — no `data.json` snapshot, no SQLite file in the deploy bundle. The Vercel function bundle stays small (~5MB vs the 76MB it would be with a bundled `.db`), and refreshing data just means running `npm run data` again — no redeploy needed.
+
+**Why not local SQLite?** Vercel's serverless functions can't persist a `.db` file across cold starts, and bundling the `.db` with the function balloons the deploy. Turso solves both — HTTP-based access from any environment, single DB instance, sub-100ms queries.
+
+**Why two endpoints?** `/api/data` is read-only and cacheable (5-min edge cache). `/api/ai` is per-engineer on-click — it never auto-fires, so Gemini cost is bounded by user interaction, not page loads.
 
 ## Reproduce locally
 
 ```bash
-cp .env.empty .env   # then fill GITHUB_TOKEN and GEMINI_API_KEY
+cp .env.empty .env   # fill GITHUB_TOKEN, GEMINI_API_KEY, TURSO_DATABASE_URL, TURSO_AUTH_TOKEN
 npm install
-npm run data         # syncs PRs + reviews, computes report, writes data.json (~5 min first run)
-npm run build        # static build → root/build/
-```
-
-Quick re-compute (no GitHub re-fetch):
-
-```bash
-npm run data:fresh
-```
-
-Local dev (Hono server + Vite middleware):
-
-```bash
+npx drizzle-kit push # create schema in Turso
+npm run data         # syncs PRs + reviews into Turso (~5–10 min first run)
 npm run dev          # http://localhost:8080
+```
+
+Build the static frontend:
+
+```bash
+npm run build        # → build/
 ```
 
 ## Deploy
@@ -65,9 +69,15 @@ npm run dev          # http://localhost:8080
 vercel --prod
 ```
 
-**Don't forget**: set `GEMINI_API_KEY` in the Vercel project's env vars so the `/api/ai` function works in production. The frontend never sees the key.
+**Required Vercel env vars** (Project Settings → Environment Variables, Production scope):
 
-`vercel.json` configures the static output (`build/`) and Vercel auto-detects `api/ai.ts` as a Node.js serverless function.
+- `TURSO_DATABASE_URL` — `libsql://<your-db>.aws-us-east-2.turso.io`
+- `TURSO_AUTH_TOKEN` — from `turso db tokens create <db-name>`
+- `GEMINI_API_KEY` — Google AI Studio key (for the on-demand `/api/ai` narrative)
+
+## Refreshing data
+
+Data is **live** — just re-run `npm run data` locally whenever you want fresh metrics. The dashboard will reflect the new numbers on the next request (subject to the 5-min edge cache). No redeploy needed.
 
 ## Design philosophy
 

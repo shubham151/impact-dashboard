@@ -1,6 +1,6 @@
 import { and, eq, gte } from 'drizzle-orm'
-import { authors, pulls, reviews } from '$db/schema'
-import type { db } from '$server/types'
+import { authors, pulls, reviews } from '../db/schema.js'
+import type { db } from './types.js'
 
 const WINDOW_DAYS = 90
 const MIN_MERGED = 3
