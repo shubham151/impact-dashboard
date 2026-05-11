@@ -1,21 +1,13 @@
-import { readFileSync } from 'fs'
-import path from 'path'
-import type { app } from '$server/types'
+import { Impact } from '$server/Impact'
+import type { app, db } from '$server/types'
 
-function dataPath(): string {
-  return path.join(process.cwd(), 'data.json')
-}
-
-function init(app: app): void {
+function init(app: app, db: db): void {
   app.get('/api/data', (c) => {
     try {
-      const body = readFileSync(dataPath(), 'utf-8')
-      return c.body(body, 200, {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=60'
-      })
+      const report = Impact.compute(db)
+      return c.json(report)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'data.json missing'
+      const message = err instanceof Error ? err.message : 'compute failed'
       return c.json({ error: message }, 500)
     }
   })

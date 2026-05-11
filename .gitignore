@@ -1,7 +1,8 @@
 node_modules
 
-# Database
-data
+# Database (sqlite.db IS committed so Vercel can read it at runtime)
+data/*
+!data/sqlite.db
 
 # Tests
 coverage

@@ -13,7 +13,7 @@ const db = Db.get()
 
 Pulls.init(app, db)
 Engineers.init(app, db)
-Data.init(app)
+Data.init(app, db)
 Ai.init(app)
 
 serve(app)

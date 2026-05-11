@@ -2,7 +2,6 @@ import 'dotenv/config'
 import { Db } from '$server/Db'
 import { Impact } from '$server/Impact'
 import { Sync } from '$server/Sync'
-import { writeFileSync } from 'fs'
 
 async function main(): Promise<void> {
   const skipSync = process.argv.includes('--skip-sync')
@@ -20,14 +19,14 @@ async function main(): Promise<void> {
     console.log(`[prebuild] reviews added: ${r2.added}`)
   }
 
-  console.log('[prebuild] computing impact…')
+  // Sanity-check that the SQLite file is queryable by recomputing the report.
+  // The deployed function reads data/sqlite.db directly via /api/data.
+  console.log('[prebuild] verifying impact compute…')
   const report = Impact.compute(db)
   console.log(
-    `[prebuild] ${report.totalEngineers} engineers, ${report.totalPulls} PRs, ${report.totalReviews} reviews`
+    `[prebuild] OK: ${report.totalEngineers} engineers, ${report.totalPulls} PRs, ${report.totalReviews} reviews`
   )
-
-  writeFileSync('data.json', JSON.stringify(report, null, 2))
-  console.log('[prebuild] wrote data.json (served by /api/data; AI on demand via /api/ai)')
+  console.log('[prebuild] commit + push data/sqlite.db before deploying')
 }
 
 main().catch((err) => {

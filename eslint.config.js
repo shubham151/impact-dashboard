@@ -56,7 +56,7 @@ const letRule = {
 
 export default [
   {
-    ignores: ['coverage/**', 'build/**', 'data.json']
+    ignores: ['coverage/**', 'build/**', 'data/**']
   },
   ...ts.configs.recommended,
   ...svelte.configs['flat/recommended'],
