@@ -1,3 +1,4 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { Db } from '../server/Db.js'
 import { Impact } from '../server/Impact.js'
 
@@ -12,17 +13,15 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ])
 }
 
-export default async function handler(): Promise<Response> {
+export default async function handler(_req: VercelRequest, res: VercelResponse): Promise<void> {
   try {
     const db = Db.get()
     const report = await withTimeout(Impact.compute(db), TIMEOUT_MS, 'Impact.compute')
-    return Response.json(report, {
-      status: 200,
-      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' }
-    })
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600')
+    res.status(200).json(report)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'compute failed'
     console.error('[api/data] failed:', err)
-    return Response.json({ error: message }, { status: 500 })
+    res.status(500).json({ error: message })
   }
 }

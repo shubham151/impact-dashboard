@@ -1,19 +1,22 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { generateNarrative, type aiRequest } from '../server/AiCore.js'
 
-export default async function handler(req: Request): Promise<Response> {
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'POST') {
-    return Response.json({ error: 'method not allowed' }, { status: 405 })
+    res.status(405).json({ error: 'method not allowed' })
+    return
   }
   try {
-    const body = (await req.json()) as aiRequest
+    const body = req.body as aiRequest
     if (!body?.login || !body?.metrics) {
-      return Response.json({ error: 'missing login or metrics' }, { status: 400 })
+      res.status(400).json({ error: 'missing login or metrics' })
+      return
     }
     const result = await generateNarrative(body)
-    return Response.json(result)
+    res.status(200).json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'generation failed'
-    console.error('[ai] failed:', err)
-    return Response.json({ error: message }, { status: 500 })
+    console.error('[api/ai] failed:', err)
+    res.status(500).json({ error: message })
   }
 }
