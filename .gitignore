@@ -1,8 +1,7 @@
 node_modules
 
-# Database (sqlite.db IS committed so Vercel can read it at runtime)
-data/*
-!data/sqlite.db
+# Database (local SQLite stays local; production uses Turso)
+data
 
 # Tests
 coverage

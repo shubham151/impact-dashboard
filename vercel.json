@@ -1,10 +1,5 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "build",
-  "framework": null,
-  "functions": {
-    "api/data.ts": {
-      "includeFiles": "data/sqlite.db"
-    }
-  }
+  "framework": null
 }

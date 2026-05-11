@@ -138,8 +138,8 @@ function groupBy<T, K>(items: T[], keyFn: (item: T) => K): Map<K, T[]> {
 // Data loading
 // ──────────────────────────────────────────────────────────
 
-function loadPulls(db: db, cutoff: string): pullRow[] {
-  return db
+async function loadPulls(db: db, cutoff: string): Promise<pullRow[]> {
+  return (await db
     .select({
       id: pulls.id,
       number: pulls.number,
@@ -153,11 +153,11 @@ function loadPulls(db: db, cutoff: string): pullRow[] {
     .from(pulls)
     .innerJoin(authors, eq(pulls.authorLogin, authors.login))
     .where(and(eq(authors.isBot, false), gte(pulls.createdAt, cutoff)))
-    .all() as pullRow[]
+    .all()) as pullRow[]
 }
 
-function loadReviews(db: db, cutoff: string): reviewRow[] {
-  return db
+async function loadReviews(db: db, cutoff: string): Promise<reviewRow[]> {
+  return (await db
     .select({
       reviewerLogin: reviews.reviewerLogin,
       prId: reviews.prId,
@@ -166,7 +166,7 @@ function loadReviews(db: db, cutoff: string): reviewRow[] {
     .from(reviews)
     .innerJoin(authors, eq(reviews.reviewerLogin, authors.login))
     .where(and(eq(authors.isBot, false), gte(reviews.submittedAt, cutoff)))
-    .all() as reviewRow[]
+    .all()) as reviewRow[]
 }
 
 // ──────────────────────────────────────────────────────────
@@ -371,10 +371,9 @@ function slimify(ranked: rankedEngineer[]): engineerSlim[] {
 // Top-level orchestrator
 // ──────────────────────────────────────────────────────────
 
-function compute(db: db): impactReport {
+async function compute(db: db): Promise<impactReport> {
   const cutoff = windowCutoff()
-  const allPulls = loadPulls(db, cutoff)
-  const allReviews = loadReviews(db, cutoff)
+  const [allPulls, allReviews] = await Promise.all([loadPulls(db, cutoff), loadReviews(db, cutoff)])
 
   const prIdToAuthor = new Map(allPulls.map((p) => [p.id, p.authorLogin]))
   const pullsByAuthor = groupBy(allPulls, (p) => p.authorLogin)

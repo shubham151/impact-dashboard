@@ -15,9 +15,9 @@ function init(app: app, db: db): void {
     }
   })
 
-  app.get('/api/pulls', (c) => {
+  app.get('/api/pulls', async (c) => {
     const limit = parseLimit(c.req.query('limit'))
-    const rows = db.select().from(pulls).orderBy(desc(pulls.updatedAt)).limit(limit).all()
+    const rows = await db.select().from(pulls).orderBy(desc(pulls.updatedAt)).limit(limit).all()
     return c.json(rows)
   })
 }

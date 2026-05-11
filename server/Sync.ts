@@ -16,26 +16,33 @@ function isBot(login: string, type: string, botGlobs: string[]): boolean {
   return botGlobs.map(globToRegex).some((r) => r.test(login))
 }
 
-function readCursor(db: db, key: string): string | null {
-  const row = db.select().from(syncState).where(eq(syncState.key, key)).get()
+async function readCursor(db: db, key: string): Promise<string | null> {
+  const row = await db.select().from(syncState).where(eq(syncState.key, key)).get()
   return row?.value ?? null
 }
 
-function writeCursor(db: db, key: string, value: string): void {
-  db.insert(syncState)
+async function writeCursor(db: db, key: string, value: string): Promise<void> {
+  await db
+    .insert(syncState)
     .values({ key, value })
     .onConflictDoUpdate({ target: syncState.key, set: { value } })
     .run()
 }
 
-function upsertAuthor(db: db, login: string, type: string, botGlobs: string[]): void {
-  db.insert(authors)
+async function upsertAuthor(
+  db: db,
+  login: string,
+  type: string,
+  botGlobs: string[]
+): Promise<void> {
+  await db
+    .insert(authors)
     .values({ login, isBot: isBot(login, type, botGlobs) })
     .onConflictDoNothing()
     .run()
 }
 
-function upsertPull(db: db, repo: string, p: rawPull): void {
+async function upsertPull(db: db, repo: string, p: rawPull): Promise<void> {
   const row = {
     id: p.node_id,
     number: p.number,
@@ -54,7 +61,8 @@ function upsertPull(db: db, repo: string, p: rawPull): void {
     headRef: p.head.ref,
     labels: p.labels.map((l) => l.name)
   }
-  db.insert(pulls)
+  await db
+    .insert(pulls)
     .values(row)
     .onConflictDoUpdate({
       target: pulls.id,
@@ -92,13 +100,14 @@ function ingestableSlice(batch: rawPull[], cursor: string | null): rawPull[] {
   return cutoff === -1 ? batch : batch.slice(0, cutoff)
 }
 
-function ingestBatch(db: db, cfg: config, batch: rawPull[]): void {
-  batch.forEach((p) => {
+async function ingestBatch(db: db, cfg: config, batch: rawPull[]): Promise<void> {
+  await batch.reduce(async (prev, p) => {
+    await prev
     const login = p.user?.login ?? 'unknown'
     const type = p.user?.type ?? 'User'
-    upsertAuthor(db, login, type, cfg.bots)
-    upsertPull(db, cfg.repo, p)
-  })
+    await upsertAuthor(db, login, type, cfg.bots)
+    await upsertPull(db, cfg.repo, p)
+  }, Promise.resolve())
 }
 
 type pageState = { added: number; newestSeen: string | null }
@@ -114,7 +123,7 @@ async function syncPage(
   if (batch.length === 0) return state
 
   const toIngest = ingestableSlice(batch, cursor)
-  ingestBatch(db, cfg, toIngest)
+  await ingestBatch(db, cfg, toIngest)
 
   const nextState: pageState = {
     added: state.added + toIngest.length,
@@ -132,37 +141,43 @@ async function syncPage(
 async function syncPulls(db: db): Promise<{ added: number }> {
   const cfg = Config.load()
   const cursorKey = `pulls:${cfg.repo}`
-  const cursor = readCursor(db, cursorKey)
+  const cursor = await readCursor(db, cursorKey)
   const result = await syncPage(db, cfg, cursor, 1, { added: 0, newestSeen: null })
-  if (result.newestSeen) writeCursor(db, cursorKey, result.newestSeen)
+  if (result.newestSeen) await writeCursor(db, cursorKey, result.newestSeen)
   return { added: result.added }
 }
 
-function upsertReviews(db: db, prId: string, prNumber: number, raws: rawReview[]): number {
-  return raws
-    .filter((r) => r.user && r.submitted_at)
-    .reduce((count, r) => {
-      db.insert(reviews)
-        .values({
-          id: r.node_id,
-          prId,
-          prNumber,
-          reviewerLogin: r.user!.login,
-          state: r.state,
-          submittedAt: r.submitted_at!
-        })
-        .onConflictDoNothing()
-        .run()
-      return count + 1
-    }, 0)
+async function upsertReviews(
+  db: db,
+  prId: string,
+  prNumber: number,
+  raws: rawReview[]
+): Promise<number> {
+  const valid = raws.filter((r) => r.user && r.submitted_at)
+  await valid.reduce(async (prev, r) => {
+    await prev
+    await db
+      .insert(reviews)
+      .values({
+        id: r.node_id,
+        prId,
+        prNumber,
+        reviewerLogin: r.user!.login,
+        state: r.state,
+        submittedAt: r.submitted_at!
+      })
+      .onConflictDoNothing()
+      .run()
+  }, Promise.resolve())
+  return valid.length
 }
 
-function pullsNeedingReviews(
+async function pullsNeedingReviews(
   db: db,
   cfg: config,
   cutoff: string,
   limit: number
-): { id: string; number: number }[] {
+): Promise<{ id: string; number: number }[]> {
   return db
     .select({ id: pulls.id, number: pulls.number })
     .from(pulls)
@@ -188,7 +203,7 @@ async function syncReviewsBatch(
   if (i >= todo.length) return total
   const item = todo[i]
   const raws = await Github.fetchReviewsForPull(cfg.repo, item.number)
-  const n = upsertReviews(db, item.id, item.number, raws)
+  const n = await upsertReviews(db, item.id, item.number, raws)
   if (i % 25 === 0) console.log(`[sync] reviews: ${i}/${todo.length}, ${total + n} so far`)
   return syncReviewsBatch(db, cfg, todo, i + 1, total + n)
 }
@@ -200,7 +215,7 @@ async function syncReviews(
 ): Promise<{ added: number }> {
   const cfg = Config.load()
   const cutoff = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString()
-  const todo = pullsNeedingReviews(db, cfg, cutoff, maxPulls)
+  const todo = await pullsNeedingReviews(db, cfg, cutoff, maxPulls)
   console.log(`[sync] reviews: ${todo.length} PRs to check (cap ${maxPulls})`)
   const added = await syncReviewsBatch(db, cfg, todo, 0, 0)
   return { added }

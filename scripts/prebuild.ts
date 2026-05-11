@@ -9,24 +9,21 @@ async function main(): Promise<void> {
   const db = Db.get()
 
   if (!skipSync) {
-    console.log('[prebuild] syncing pulls…')
+    console.log('[prebuild] syncing pulls into Turso…')
     const r1 = await Sync.syncPulls(db)
     console.log(`[prebuild] pulls added: ${r1.added}`)
   }
   if (!skipSync && !skipReviews) {
-    console.log('[prebuild] syncing reviews…')
+    console.log('[prebuild] syncing reviews into Turso…')
     const r2 = await Sync.syncReviews(db)
     console.log(`[prebuild] reviews added: ${r2.added}`)
   }
 
-  // Sanity-check that the SQLite file is queryable by recomputing the report.
-  // The deployed function reads data/sqlite.db directly via /api/data.
-  console.log('[prebuild] verifying impact compute…')
-  const report = Impact.compute(db)
+  console.log('[prebuild] verifying impact compute against Turso…')
+  const report = await Impact.compute(db)
   console.log(
     `[prebuild] OK: ${report.totalEngineers} engineers, ${report.totalPulls} PRs, ${report.totalReviews} reviews`
   )
-  console.log('[prebuild] commit + push data/sqlite.db before deploying')
 }
 
 main().catch((err) => {
