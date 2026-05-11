@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "packageManager": "npm@11.11.0",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "data": "mkdir -p data && npm run db:push && node --import tsx scripts/prebuild.ts",
     "data:fresh": "node --import tsx scripts/prebuild.ts --skip-sync",
