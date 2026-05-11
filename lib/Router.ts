@@ -14,7 +14,6 @@ export function navigate(to: string): void {
 }
 
 export function init(): void {
-  history.replaceState(null, '', '/' + getRoute())
   window.addEventListener('popstate', () => {
     route.set(getRoute())
   })
